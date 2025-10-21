@@ -1,0 +1,288 @@
+---
+title: "20581 - Estadística"
+subtitle: "Práctica final"
+author: "Universitat de les Illes Balears"
+format:
+  pdf:
+    pdf-engine: pdflatex
+    toc: true
+    toc_depth: 4
+    code-overflow: wrap
+editor: visual
+# bibliography: references.bib
+embed-resources: true
+header-includes:
+  - \usepackage{bm}
+  - \usepackage{amsmath}
+language:
+  toc-title-document: "Índice"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Pregunta 1 (0.5 puntos)
+
+**En primer lugar, explicad brevemente lo que significan las variables que se os han asignado. En segundo lugar, leed el fichero DadesPractica.xlsx y guardadlo en la variable DadesPractica. De ese fichero, seleccionar las columnas Dengue incidence, Year y las diferentes variables que se os hayan asignado, incluyendo el municipio. Finalmente, guardamos el resultado en la variable datos.**
+
+Se nos han asignado las variables Tavg, Havg i Wsag. Las tres describen la media a 2 metros de altura de la temperatura, la humedad y la velocidad del viento respectivamente.
+
+```{r}
+library(readxl)
+DadesPractica <- read_excel("DadesPractica.xlsx")
+
+```
+
+```{r}
+library(dplyr)
+
+datos <- DadesPractica %>% 
+  mutate(Y=`Dengue incidence`,
+                X1 = Tavg, X2=Havg, X3=WSavg) %>% 
+  filter(Municipality=="Bello") %>% 
+  filter(2012 <= Year) %>%
+  select(Y, X1, X2, X3, Year)
+
+
+
+```
+
+## Pregunta 2 (0.5 puntos)
+
+**Realizad un análisis descriptivo de cada variable Y, X1, X2 y X3. Calculad la media, la mediana, el mínimo, el máximo y la varianza de cada variable.**
+
+```{r, echo=FALSE}
+medias <- colMeans(datos[, c("Y", "X1", "X2", "X3")])
+
+medianas <- sapply(datos[, c("Y", "X1", "X2", "X3")], median)
+
+varianzas <- sapply(datos[, c("Y", "X1", "X2", "X3")], function(x) var(x) * (311 / 312))
+varianzas
+
+maximos <- sapply(datos[, c("Y", "X1", "X2", "X3")], max)
+maximos
+
+minimos <- sapply(datos[, c("Y", "X1", "X2", "X3")], min)
+
+```
+
+Para dar el análisi descriptivo haremos uso de vectores, la primera componente harà referencia a 'Dengue incidences' i las entradas j-éssimas a $X_j$ con $j\in\{1,2,3\}$. (Por simplicidad de notación el vector sera un vector fila que empieza en 0). Las medias son: $(12.003, 17.845, 88.211, 0.298)$ Las medianas: $(7, 17.773, 88.48, 0.291)$ El mínimo: $(0, 16.303, 78.284, 0.215)$ El màximo: $(63, 20.287, 93.26, 0.499)$ Las varianzas: $(155.75, 0.392, 8.573, 0.002)$
+
+## Pregunta 3 (0.75 puntos)
+
+**Realizad un diagrama de caja para X1 y analizadlo. El diagrama de caja debe estar agrupado por cada año.**
+
+```{r}
+boxplot(X1 ~ Year, data = datos, ylab = 'average temperature')
+```
+
+Como podemos observar en el diagrama la temperatura media ha incrementado cada año desde el año 2012 hasta el 2016 y en el último ha vuelto a bajar.
+
+## Pregunta 4 (0.75 puntos)
+
+**Para cada año, calculad la proporción de valores de** $Y$ que valen cero, y los que son diferentes de cero. Mostrad esas dos proporciones en un diagrama de barras. ¿Es posible ver alguna tendencia en el tiempo?
+
+```{r}
+library(dplyr)
+
+resultados <- datos %>%
+  group_by(Year) %>%
+  summarise(ProporcionZeros = mean(Y == 0, na.rm = TRUE))
+
+years <- c(2012, 2013, 2014, 2015, 2016, 2017)
+
+
+barplot(resultados$ProporcionZeros,
+        names.arg = years,
+        col = "Skyblue",
+        main = "Proporción de ceros en Y por año",
+        xlab = "Año",
+        ylab = "Proporción de ceros")
+
+
+```
+
+A primera vista no hay una tendencia marcada y visible.
+
+## Pregunta 5 (1 punto)
+
+**Se os ha asignado un rango de años a cada grupo. Considerad las variables** $W_1$ y $W_2$, donde $W_1$ es la variable $X_1$ restringida al primer año de vuestra serie, y $W_2$ es la variable $X_1$ restringida al último año de vuestra serie. ¿Siguen $W_1$ y $W_2$ una distribución normal? Realizad un contraste de hipótesis para determinar si la media de $W_1$ es igual a la de $W_2$.?
+
+Empezemos por estudiar si $W_1$ y $W_2$ siguen una distribución normal. Para ello hemos realizado el test de Shapiro-Wilk. En ambas variables tenemos un p-value muy elevado, conseqüentemente tenemos suficientes evidencias para afirmar que siguen una distribución normal.
+
+```{r}
+W1 <- datos  %>%
+  filter(Year == 2012)
+W1 = W1$X1
+
+W2 <- datos %>%
+  filter(Year == 2017)
+W2 = W2$X1
+
+
+shapiro.test(W1)
+shapiro.test(W2)
+hist(W1)
+hist(W2)
+
+```
+
+Para la segunda parte del ejercicio queremos observar si las medias coinciden. Como el estimador de máxima verosimilitud de la desviación típica de una normal és la varianza vamos a calcularlas para suponer si son iguales o no. Al no ser iguales las casi-varianzas las primeras tampoco lo van a ser. Entonces nuestra hipotesi nula es: $H_0: \mu_1=\mu_2$ y la hipotesi alternativa: $H_1: \mu_1\neq\mu_2$ con la varianza desconocida pero diferente.
+
+Sabemos por teoria que la región crítica es: $$R=\{|Z|>z_{1-\alpha/2}\}$$ con $$
+Z = \frac{\overline{X}-\overline{Y}}{\sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}}
+$$
+
+```{r}
+mu1 = mean(W1)
+var1 = var(W1)
+
+mu2 = mean(W2)
+var2 = var(W2)
+
+R = abs((mu1 - mu2)/sqrt(var1/length(W1) + var2/length(W2)))
+z = qnorm(0.975)
+R/z
+```
+
+Por consiguiente hemos visto que estamos dentro de la region crítica y rechazamos la hipotesis nula.
+
+## Pregunta 6 (1 punto)
+
+**Veamos si toda la variable `Y`, sin incorporar más variables, sigue una distribución de Poisson de parámetro** $\lambda$. Primero, usad la función `fitdistr` del paquete `MASS` para encontrar el estimador de máxima verosimilitud de $\lambda$ a partir del vector de datos `Y`. ¿Coincide con el estimador de máxima verosimilitud visto en la asignatura? Después, aplicad un test adecuado para determinar si $Y$ se puede modelar con una distribución de Poisson usando el estimador obtenido en el paso anterior.
+
+*Indicación:* **El contraste de la distribución de Poisson no debe hacerse sobre el vector** $Y$ directamente, sino sobre el vector de recuento de elementos de $Y$.
+
+```{r}
+library(MASS)
+estimacio <- fitdistr(datos$Y, 'poisson')
+
+# Observem que l'estimador de màxima versemblança de una distribució Poisson 
+#és la mitjana de les observacions, per tant
+
+estimador_previst <- mean(datos$Y)
+
+
+estimacio$estimate
+estimador_previst
+
+recuento = datos %>%
+            count(Y) #hauria de seguir una distribució multinomial
+
+n = sum(recuento$n)
+p_i=c() 
+for(n in recuento$Y){
+  p_i= c(p_i,dpois(n, estimador_previst))}
+
+sum(p_i)
+chisq.test(recuento$n, p_i)
+
+
+```
+
+Notemos que efectivamente los dos valores coinciden tanto el calculado con R como el valor teorico de la asignatura. Al tener un p-value muy bajo decidimos rechazar la hipotesi nula. Es decirno podemos modelar $Y$ con una distribución de Poisson.
+
+## Pregunta 7
+
+**Vamos a resolver el problema de la regresión de Poisson que hemos explicado en la sección introductoria. Haced los pasos siguientes:**
+
+**Construid la función de verosimilitud** $L(Y_1,\dots, Y_n;\beta_0,\beta_1,\beta_2,\beta_3)$, **teniendo presente que** $Y|\mathbf{x}_i\sim \text{Poiss}(\lambda_i)$ con $\lambda_i=\exp\left\{\beta_0+\beta_1 x_{i1}+\beta_2 x_{i2}+\beta_3 x_{i3}\right\}$, **ya que hemos elegido solo tres variables.**
+
+Vamos a calcular la función de verosimilitud: $$
+L(\boldsymbol{\beta}) = \prod_{i=1}^n \frac{e^{-\lambda_i} \lambda_i^{y_i}}{y_i!}
+\quad \text{donde} \quad \lambda_i = \exp(\mathbf{x}_i^\top \boldsymbol{\beta})
+$$ entonces $$
+K(\boldsymbol{\beta}) = \log L(\boldsymbol{\beta}) = 
+\sum_{i=1}^n \left( -\lambda_i + y_i \log(\lambda_i) - \log(y_i!) \right)
+$$
+
+**Consideremos** $K(Y_1,\dots, Y_n;\beta_0,\beta_1,\beta_2,\beta_3)=\ln L(Y_1,\dots, Y_n;\beta_0,\beta_1,\beta_2,\beta_3)$. **Determinad las derivadas parciales de** $K$ respecto de $\beta_j$ con $j\in\{0,1,2,3\}$.
+
+**Indicación: No es necesario que tratéis por separado los casos** $j=0$ y $j\in\{1,2,3\}$. Basta que consideréis por simplicidad que $x_{i,0}=1$, mientras que $x_{i,j}$ para $j\in\{1,2,3\}$ es el valor de la muestra.
+
+Las derivadas parciales son las entradas del gradiente: $$
+\nabla K(\boldsymbol{\beta}) =
+\sum_{i=1}^n (y_i - \lambda_i) \mathbf{x}_i
+=
+\begin{bmatrix}
+\sum_{i=1}^n (y_i - \lambda_i) \\
+\sum_{i=1}^n (y_i - \lambda_i) x_{i1} \\
+\sum_{i=1}^n (y_i - \lambda_i) x_{i2} \\
+\sum_{i=1}^n (y_i - \lambda_i) x_{i3}
+\end{bmatrix}
+$$
+
+**Demostrad que la matriz Hessiana es definida negativa.**
+
+Notemos que $$
+\mathbf{H}=-\sum_{i=1}^{n} \lambda_i\mathbf{x}_i\mathbf{x}_i^\top = -
+\begin{bmatrix}
+\sum \lambda_i & \sum \lambda_i x_{i1} & \sum \lambda_i x_{i2} & \sum \lambda_i x_{i3} \\
+\sum \lambda_i x_{i1} & \sum \lambda_i x_{i1}^2 & \sum \lambda_i x_{i1} x_{i2} & \sum \lambda_i x_{i1} x_{i3} \\
+\sum \lambda_i x_{i2} & \sum \lambda_i x_{i2} x_{i1} & \sum \lambda_i x_{i2}^2 & \sum \lambda_i x_{i2} x_{i3} \\
+\sum \lambda_i x_{i3} & \sum \lambda_i x_{i3} x_{i1} & \sum \lambda_i x_{i3} x_{i2} & \sum \lambda_i x_{i3}^2
+\end{bmatrix}
+$$ Ahora como $\mathbf{x}_i\mathbf{x}_i^\top$ es una matriz definida positiva. Ya que al estudiar la forma quadratica observamos que $z^tXX^tz = (X^tz)^t X^tz = ||X^tz||^2 \geq 0$ Finalmente, la matriz final es definida negativa pues multiplicamos escalarmente por cada landa_i que es positivo y sumamos matrices que son definidas postivas una a una. Al tener el signo negativo delante podemos afirmar que es definida negativa
+
+**Habréis observado que a partir del apartado 2 de esta pregunta, no es posible determinar explícitamente los valores de** $\beta_j$, por lo que deberemos aplicar un algoritmo iterativo para resolverlo. Usando la semilla inicial $\beta_j=0$ para $j\in\{0,1,2,3\}$, aplicad el algoritmo de Newton–Raphson para determinar los $\beta_j$. Recordad que la sucesión es la siguiente: $$\vec{\beta}_{k+1} = \vec{\beta}_{k}-\left(H_{K}(\vec{\beta})\right)^{-1}\cdot \nabla K(\vec{\beta}_k),$$ donde $\vec{\beta}_{k}=(\beta_{0k},\beta_{1k},\beta_{2k},\beta_{3k})$ es la iteración $k$-ésima de la sucesión que aproxima los $\beta_j$. Usad como mucho $N=100$ iteraciones.
+
+**Atención: La implementación de este algoritmo debe controlar, obligatoriamente, la estabilidad del método. Por ejemplo, comprobar en cada caso que la matriz Hessiana es efectivamente invertible, y que el producto** $\left(H_{K}(\vec{\beta}_{k})\right)^{-1}\cdot \nabla K(\vec{\beta}_{k})$ no devuelve ningún valor NA.
+
+```{r}
+hessiana <- function(beta, X){
+  n = nrow(X)
+  landa_i  = exp(X %*% beta)
+  matriu_final = matrix(rep(0, 16), nrow = 4)
+  for (j in 1:length(datos$Y)){
+  matriu_final = matriu_final + landa_i[j] * X[j,]%*%t(X[j,])
+  }
+  return(-matriu_final)
+}
+
+
+```
+
+```{r}
+gradient <- function(beta, x, y){
+  landa_i = exp(X %*% beta)
+  grad = t(X) %*% (Y - landa_i)
+  return(grad)
+}
+
+```
+
+```{r}
+Beta_inicial = c(0,0,0,0)
+X = as.matrix(datos[2:4])
+X = cbind(1,X)
+Y = as.matrix(datos[1])
+
+newton_raphson <- function(beta, x, y, max_iter = 100, tol = 1e-6) {
+  epsilon <- 1e-15  # Para estabilidad numérica
+  
+  for (k in 1:max_iter) {
+    Hessiana = hessiana(beta, x)
+    Gradient = gradient(beta, x, y)
+    direccio = solve(Hessiana)%*%Gradient
+    beta <- beta - direccio
+  }
+  return(beta)
+}
+
+Resultat = newton_raphson(Beta_inicial, X, Y)
+```
+
+La $\beta$ resultante es: $(-1.016, 0.391, -0.038, -0.756)$
+
+Hemos podido suponer que en qualquier paso la matriz Hesiana es invertible por ser definida negativa.
+
+## Pregunta 8
+
+**También podemos resolver la pregunta 7 usando las funciones de `R`. El comando `glm`, de las siglas *Generalized Linear Model* permite determinar los coeficientes. Mirad la documentación de la función, y aplicadlo al problema para determinar los coeficientes. Comprobad que, efectivamente, llegamos a la misma solución que el apartado anterior.**
+
+```{r}
+glm(Y ~ X1 + X2 + X3, data = datos, family = poisson())
+```
+
+El resultado con este método es el mismo que en el problema anterior.
